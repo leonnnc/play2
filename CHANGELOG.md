@@ -2,6 +2,28 @@
 
 Todos los cambios relevantes de Play2. Formato basado en Keep a Changelog y SemVer.
 
+## [0.2.0] - 2026-10-27
+
+PWA instalable y primera red de pruebas automatizadas.
+
+### Añadido
+
+- **PWA instalable** con `vite-plugin-pwa` 2.0.0 (`generateSW`): manifest en español (`Play2 · Musica cristiana`), `display: standalone`, `theme_color`/`background_color` `#05030c`, orientación vertical e iconos 192, 512 y maskable 512.
+- **Service worker con `autoUpdate`**: precachea 15 archivos (467 KiB). La API queda en `NetworkOnly` (nunca se sirve datos viejos), las carátulas de Apple en `CacheFirst` (30 días, 400 entradas) y fuentes/imágenes en `StaleWhileRevalidate`.
+- Registro del service worker en `main.tsx` solo en producción, con log `onOfflineReady`.
+- **Generador de iconos sin dependencias** (`scripts/generate-icons.mjs`, `npm run icons`): codificador PNG propio con zlib, supersampling 3× y logo de play con degradado; produce 192/512/maskable/apple-touch/favicon-32.
+- **Suite de pruebas con Vitest** (`npm test`): 29 pruebas en 3 archivos.
+  - `tests/purity.test.ts` (14): los tres modos del filtro cristiano, artistas, géneros y términos bíblicos.
+  - `tests/track.test.ts` (10): sanitizado y normalización de tracks que llegan del cliente.
+  - `tests/providers.test.ts` (5): `interleave`, `dedupe` y `providerStatus`.
+- `vitest.config.ts` con plugin que reescribe imports relativos `.js` → `.ts` (el código es ESM NodeNext).
+- Scripts `test`, `test:watch` e `icons` en la raíz.
+
+### Cambiado
+
+- `index.html` incluye manifest, apple-touch-icon, favicon PNG y metas de app instalable iOS/Android.
+- `vite-env.d.ts` añade los tipos de `vite-plugin-pwa/client`.
+
 ## [0.1.0] - 2026-10-27
 
 Primera versión funcional de Play2 (web).

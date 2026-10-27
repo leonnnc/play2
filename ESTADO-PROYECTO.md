@@ -1,7 +1,7 @@
 # Play2 · Estado del proyecto y guía de continuidad
 
 > **Lee este archivo primero si retomas el proyecto sin contexto previo.**
-> Última actualización: **2026-10-27** · Versión: **0.1.0** · Fase: web funcional.
+> Última actualización: **2026-10-27** · Versión: **0.2.0** · Fase: web + PWA instalable.
 
 ---
 
@@ -19,7 +19,7 @@ Orden de entrega acordado con el usuario: **web → escritorio → móvil**, con
 
 ## 2. Estado actual en una línea
 
-La **web está completa y funcional**: API + SPA compilan sin errores de TypeScript, el catálogo devuelve contenido cristiano real sin claves de API, y el flujo de registro/playlists/favoritos/ranking está implementado. **Falta**: pruebas automatizadas, app de escritorio y app móvil.
+La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**: API + SPA compilan sin errores de TypeScript, el catálogo devuelve contenido cristiano real sin claves de API, y el flujo de registro/playlists/favoritos/ranking está implementado. **Falta**: app de escritorio y app móvil (bloqueadas por toolchains nativos ausentes en esta máquina, ver §7).
 
 ## 3. Cómo levantarlo
 
@@ -34,9 +34,21 @@ Comprobación rápida de la API:
 
 ```bash
 curl http://127.0.0.1:4000/api/health
+# si no responde, el servidor quedó escuchando solo en IPv6:
+curl http://[::1]:4000/api/health
 ```
 
-> En esta máquina `curl localhost` no resuelve: usar siempre `127.0.0.1`.
+> En esta máquina `curl localhost` no resuelve siempre, y Vite/API pueden quedar ligados solo a IPv6. Si `127.0.0.1` devuelve vacío, probar `[::1]`. En el navegador, `http://localhost:5173` funciona.
+
+Pruebas y verificación antes de cerrar un cambio:
+
+```bash
+npm test          # 29 pruebas (api)
+npm run typecheck
+npm run build     # genera además el service worker en apps/web/dist
+```
+
+La PWA solo se registra en **producción**. Para probarla hay que construir y servir el build (`npm run build` + `npm start`, que sirve `apps/web/dist`) o usar `npm run preview -w apps/web`; en `npm run dev` el service worker está desactivado a propósito.
 
 ## 4. Inventario de código
 
@@ -88,6 +100,21 @@ curl http://127.0.0.1:4000/api/health
 | `components/TrackActions.tsx` | Menú de acciones: favorito, añadir a playlist, abrir original |
 | `components/ui.tsx` | Botones, chips, modales, skeletons reutilizables |
 | `pages/*` | 11 páginas: Home, SearchPage, CategoryPage, Ranking, Playlists, PlaylistDetail, Favorites, Account, Login, Register, NotFound |
+| `main.tsx` | Monta la app y registra el service worker (`virtual:pwa-register`) solo en producción |
+| `vite-env.d.ts` | Tipos de `vite/client` y `vite-plugin-pwa/client` |
+
+### Configuración, pruebas y scripts
+
+| Archivo | Responsabilidad |
+|---|---|
+| `apps/web/vite.config.ts` | Vite + `VitePWA`: manifest, `autoUpdate`, precache, `NetworkOnly` para `/api`, caché de carátulas y fuentes |
+| `apps/web/public/icons/*` | PNG generados: 192, 512, maskable 512, apple-touch 180, favicon 32 |
+| `apps/api/vitest.config.ts` | Vitest en Node + plugin que reescribe imports relativos `.js` → `.ts` |
+| `apps/api/tests/purity.test.ts` | 14 pruebas del filtro cristiano (tres modos, artistas, géneros, términos) |
+| `apps/api/tests/track.test.ts` | 10 pruebas de `sanitizeTrack` |
+| `apps/api/tests/providers.test.ts` | 5 pruebas de `interleave`, `dedupe`, `providerStatus` |
+| `scripts/generate-icons.mjs` | Codificador PNG propio (zlib + supersampling 3×) para los iconos |
+| `scripts/bump-version.mjs` | Sube versión en 3 `package.json`, `VERSION` y `CHANGELOG.md` |
 
 ## 5. Decisiones de arquitectura (y por qué)
 
@@ -99,6 +126,9 @@ curl http://127.0.0.1:4000/api/health
 6. **`ProviderReport` honesto** — la UI muestra por fuente `ok` / `missing_key` / `error` con conteo y milisegundos, en vez de fingir resultados.
 7. **`interleave()` + `dedupe()`** — ningún proveedor domina la lista y no se repiten tracks entre fuentes.
 8. **Filtro de pureza en el agregador, no en cada proveedor** — un solo punto de verdad aplicado a búsqueda, browse y fallback; cubre proveedores futuros automáticamente. Tres niveles (`strict` / `balanced` / `open`) definidos por la intención de la consulta: así una búsqueda cristiana no pierde resultados y una búsqueda secular no cuela pop.
+9. **PWA con la API siempre en red** — el service worker precachea el shell (HTML, JS, CSS, iconos, fuentes) pero `/api` va `NetworkOnly`: preferimos quedarnos sin datos a mostrar catálogo viejo o rankings mentirosos. Las carátulas (inmutables) sí van `CacheFirst` 30 días.
+10. **Iconos generados por código, no por dependencia** — `scripts/generate-icons.mjs` escribe PNG con zlib puro; cero paquetes nativos, reproducible con `npm run icons` y mismo logo en web, escritorio y móvil.
+11. **Pruebas contra `src/` con Vitest** — el código es ESM NodeNext (imports `.js`), así que el config reescribe `.js` → `.ts` con un plugin `pre`. Se prueba la lógica (pureza, sanitizado, agregador), no la infraestructura.
 
 ### Rarezas descubiertas (no volver a tropezar)
 
@@ -130,11 +160,16 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 | `POST /api/library/play` + `GET /api/rankings` | el track aparece con `score: 6` (1 play + 1 like×3 + 1 usuario×2), `liveActivity: true` |
 | `DELETE /api/library/history` | historial vaciado |
 | `GET /api/catalog/resolve/feed` | devuelve episodio reproducible de un feed real |
+| `npm test` (v0.2.0) | **29 pruebas en 3 archivos, todas pasan** (`purity` 14, `track` 10, `providers` 5), 8.8 s |
+| `npm run build` (v0.2.0) | pasa; 1983 módulos, `sw.js` + `workbox` generados, **15 archivos precacheados (467 KiB)**, bundle 407 kB (124 kB gzip) |
+| `dist/manifest.webmanifest` | generado con iconos 192/512/maskable, `standalone`, `start_url: /` |
 
 ## 7. Limitaciones conocidas
 
 - Persistencia en **un solo archivo JSON**: no apta para múltiples instancias ni concurrencia alta.
-- **Sin pruebas automatizadas** (ni unitarias ni e2e).
+- **Pruebas solo unitarias** (lógica de pureza, sanitizado y agregador). No hay e2e ni pruebas de las rutas HTTP.
+- **La PWA no reproduce offline**: el shell se instala y abre sin red, pero `/api` es `NetworkOnly`, así que sin conexión el catálogo aparece vacío. Descargas offline están en la fase móvil.
+- **Toolchains nativos ausentes en esta máquina**: no hay `rustc`/`cargo` (Tauri), ni Java/Android SDK (Capacitor Android), ni Xcode completo (iOS). El escritorio y el móvil no se pueden compilar aquí hasta instalarlos.
 - **Spotify** usa client-credentials: reproduce vía embed y requiere cuenta del usuario; no hay OAuth de usuario ni "guardar en mi biblioteca".
 - **Previews de Apple** duran 30 s.
 - **Las claves de YouTube/Spotify/SoundCloud/Vimeo no están configuradas** en este entorno: esos proveedores aparecen como `missing_key` hasta que se añadan a `.env`.
@@ -146,21 +181,22 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 
 Prompt sugerido para retomar:
 
-> "Continúa Play2 en `/Users/macmi/Documents/webmini/play2`. Versión actual 0.1.0, fase web completada. Lee `ESTADO-PROYECTO.md` y `README.md`. Siguiente tarea: [describir]. Al terminar, sube la versión con `npm run version:patch -- \"nota\"` y actualiza este archivo."
+> "Continúa Play2 en `/Users/macmi/Documents/webmini/play2`. Versión actual 0.2.0, web + PWA completadas. Lee `ESTADO-PROYECTO.md` y `README.md`. Siguiente tarea: [describir]. Al terminar, corre `npm test`, sube la versión con `npm run version:patch -- \"nota\"` y actualiza este archivo."
 
 Reglas del proyecto:
 
 1. **Cada cambio relevante sube versión** (`npm run version:patch -- "nota"`) → `package.json` ×3, `VERSION`, `CHANGELOG.md`.
-2. **Antes de cerrar una tarea**: `npm run typecheck` y `npm run build`.
+2. **Antes de cerrar una tarea**: `npm test`, `npm run typecheck` y `npm run build`.
 3. **No romper el arranque sin claves**: iTunes debe seguir funcionando solo.
 4. **Nada de contenido no cristiano** en el catálogo: si aparece ruido, ampliar `lib/purity.ts`.
 5. **Actualizar la sección 6** de este archivo cuando se verifique algo nuevo.
 
 ## 9. Próximos pasos concretos
 
-1. Pruebas end-to-end del flujo completo (login → playlist → favoritos → ranking con actividad).
-2. `vitest` para `purity.ts`, `interleave/dedupe`, `rankings` y `sanitizeTrack`.
-3. PWA: manifest, service worker, instalable en móvil.
-4. App de escritorio con **Tauri 2** (ver `ROADMAP.md`).
-5. Migración a SQLite cuando se empaquete el escritorio.
-6. OAuth de Spotify para cuentas reales.
+1. **App de escritorio con Tauri 2** (siguiente fase, v0.3.0). Antes hay que instalar Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`.
+2. Code splitting: hoy el bundle son 407 kB en un solo archivo (124 kB gzip); separar por ruta con `React.lazy`.
+3. Skeleton loaders por bloque y manejo explícito de proveedores caídos en la UI.
+4. Pruebas e2e del flujo completo (login → playlist → favoritos → ranking con actividad), p. ej. con `supertest` sobre la app de Express.
+5. Migración a SQLite al empaquetar el escritorio.
+6. App móvil con Capacitor (v0.4.0): requiere JDK 17 + Android SDK (Android) y Xcode (iOS).
+7. OAuth de Spotify para cuentas reales.

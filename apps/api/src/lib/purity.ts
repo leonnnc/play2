@@ -80,6 +80,9 @@ const CHRISTIAN_TERMS: RegExp[] = [
   /\bgloria a dios\b/i,
   /\boraci[oó]n\b/i,
   /\bpara orar\b/i,
+  // libros de la Biblia suficientemente distintivos (se excluyen nombres que
+  // tambien son nombres de pila: juan, marcos, lucas, mateo, daniel, job...)
+  /\b(g[eé]nesis|exodo|lev[ií]tico|proverbios|eclesiast[eé]s|isa[ií]as|jerem[ií]as|lamentaciones|ezequiel|habacuc|sofon[ií]as|zacar[ií]as|malaqu[ií]as|corintios|g[aá]latas|efesios|filipenses|colosenses|tesalonicenses|timoteo|filem[oó]n|hebreos|romanos|apocalipsis|evangelio)\b/i,
 ];
 
 /** Temas ajenos al proposito de la app. Se descartan siempre. */

@@ -2,7 +2,8 @@
 
 Plataforma de música **netamente cristiana**: alabanzas, adoraciones, himnos, coros, instrumental, música para niños, prédicas y podcasts. Un solo dashboard para elegir qué escuchar, buscar en varios proveedores a la vez y guardar lo que te gusta.
 
-- **Web (v0.1.0, funcional)** — React + Vite + Tailwind, UI oscura tipo aurora.
+- **Web (v0.2.0, PWA instalable)** — React + Vite + Tailwind, UI oscura tipo aurora. Se instala en el móvil o el escritorio como app.
+- **29 pruebas automatizadas** con Vitest sobre el filtro cristiano, el sanitizado de tracks y el agregador.
 - **Escritorio y móvil** — planificados sobre el mismo backend (ver [ROADMAP.md](ROADMAP.md)).
 - **Estado detallado del proyecto / continuidad** — [ESTADO-PROYECTO.md](ESTADO-PROYECTO.md).
 
@@ -59,17 +60,30 @@ El servidor Express sirve `apps/web/dist` con fallback SPA, así que en producci
 | `npm run build` | build de producción de ambos |
 | `npm start` | arranca la API compilada (sirve la web) |
 | `npm run typecheck` | TypeScript estricto en api y web |
+| `npm test` | ejecuta las 29 pruebas (Vitest) |
+| `npm run test:watch` | pruebas en modo vigilancia |
+| `npm run icons` | regenera los PNG de la PWA desde código |
 | `npm run version:patch` | sube la versión y añade entrada al CHANGELOG |
+
+### Instalar como app (PWA)
+
+El service worker solo se activa en **producción**, no en `npm run dev`:
+
+```bash
+npm run build && npm start     # http://localhost:4000
+```
+
+Abre `http://localhost:4000` en Chrome/Safari/Edge y usa **Instalar app** (o *Añadir a pantalla de inicio* en iOS). Queda con su propio icono y ventana, sin barra del navegador. Nota: el shell funciona sin conexión, pero el catálogo viene de la API (`/api` siempre va a red, nunca cacheado).
 
 ---
 
 ## 3. Versionado
 
-SemVer desde **0.1.0**. Cada cambio relevante sube la versión y deja rastro en `CHANGELOG.md`:
+SemVer desde **0.1.0** (actual: **0.2.0**). Cada cambio relevante sube la versión y deja rastro en `CHANGELOG.md`:
 
 ```bash
-npm run version:patch -- "Corrige el filtro de prédicas"   # 0.1.0 -> 0.1.1
-npm run version:minor -- "Agrega rankings por categoría"   # 0.1.1 -> 0.2.0
+npm run version:patch -- "Corrige el filtro de prédicas"   # 0.2.0 -> 0.2.1
+npm run version:minor -- "Agrega rankings por categoría"   # 0.2.1 -> 0.3.0
 node scripts/bump-version.mjs patch "nota" --tag            # + commit y tag vX.Y.Z
 ```
 
