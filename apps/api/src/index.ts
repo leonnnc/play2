@@ -20,8 +20,17 @@ app.use(express.json({ limit: '256kb' }));
 app.use(
   cors({
     origin(origin, cb) {
-      // permitir herramientas locales (sin origin) y los origenes configurados
-      if (!origin || config.corsOrigins.includes(origin) || origin.endsWith('.local')) {
+      // Origenes propios del WebView de Capacitor (app movil y Android TV):
+      // alli el "origin" no es http sino el scheme interno de la app.
+      const appOrigins = ['https://localhost', 'capacitor://localhost', 'ionic://localhost'];
+      // permitir herramientas locales (sin origin), los origenes configurados
+      // y cualquier equipo de la red local que sirva la app (p. ej. la TV)
+      if (
+        !origin ||
+        config.corsOrigins.includes(origin) ||
+        appOrigins.includes(origin) ||
+        origin.endsWith('.local')
+      ) {
         cb(null, true);
         return;
       }

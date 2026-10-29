@@ -2,9 +2,10 @@
 
 Plataforma de música **netamente cristiana**: alabanzas, adoraciones, himnos, coros, instrumental, música para niños, prédicas y podcasts. Un solo dashboard para elegir qué escuchar, buscar en varios proveedores a la vez y guardar lo que te gusta.
 
-- **Web (v0.2.0, PWA instalable)** — React + Vite + Tailwind, UI oscura tipo aurora. Se instala en el móvil o el escritorio como app.
+- **Web (PWA instalable)** — React + Vite + Tailwind, UI oscura tipo aurora. Se instala en el móvil o el escritorio como app.
+- **Android / Android TV (v0.3.0)** — APK único con lanzador de TV (`dist/play2-0.3.0-android-tv.apk`).
+- **Escritorio (v0.3.0)** — Tauri 2 sobre el mismo frontend, empaqueta `.dmg`/`.app`.
 - **29 pruebas automatizadas** con Vitest sobre el filtro cristiano, el sanitizado de tracks y el agregador.
-- **Escritorio y móvil** — planificados sobre el mismo backend (ver [ROADMAP.md](ROADMAP.md)).
 - **Estado detallado del proyecto / continuidad** — [ESTADO-PROYECTO.md](ESTADO-PROYECTO.md).
 
 ---
@@ -63,6 +64,8 @@ El servidor Express sirve `apps/web/dist` con fallback SPA, así que en producci
 | `npm test` | ejecuta las 29 pruebas (Vitest) |
 | `npm run test:watch` | pruebas en modo vigilancia |
 | `npm run icons` | regenera los PNG de la PWA desde código |
+| `npm run apk -w apps/mobile` | compila el APK de Android (`assembleDebug`) |
+| `npm run build -w apps/desktop` | compila la app de escritorio con Tauri (requiere Rust) |
 | `npm run version:patch` | sube la versión y añade entrada al CHANGELOG |
 
 ### Instalar como app (PWA)
@@ -75,11 +78,32 @@ npm run build && npm start     # http://localhost:4000
 
 Abre `http://localhost:4000` en Chrome/Safari/Edge y usa **Instalar app** (o *Añadir a pantalla de inicio* en iOS). Queda con su propio icono y ventana, sin barra del navegador. Nota: el shell funciona sin conexión, pero el catálogo viene de la API (`/api` siempre va a red, nunca cacheado).
 
+### Android, Android TV y escritorio
+
+El APK y el `.dmg` no se sirven desde la API: el frontend se compila con la URL del backend dentro, porque dentro del WebView nativo el `/api` relativo no existe.
+
+```bash
+# 1) API accesible desde la TV/móvil en la misma red
+npm run dev                     # o: npm run build && npm start
+
+# 2) APK con la IP de esta máquina compilada dentro
+VITE_API_URL="http://192.168.100.86:4000/api" npm run build -w apps/web
+npx cap copy android --prefix apps/mobile
+npm run apk -w apps/mobile      # -> apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+# 3) Escritorio
+npm run build -w apps/desktop   # -> apps/desktop/src-tauri/target/release/bundle/dmg/
+```
+
+Requiere **JDK 17 + Android SDK 34** (Android) y **Rust** (escritorio). El mismo APK sirve para móvil, Android TV y Fire TV: declara `LAUNCHER` y `LEANBACK_LAUNCHER`.
+
+> Si cambia la IP de la Mac hay que **reconstruir** el APK. Para instalarlo en la TV, activa *Depuración por ADB* y usa `adb connect <IP>:5555` + `adb install -r dist/play2-0.3.0-android-tv.apk`, o cópialo con un gestor de archivos.
+
 ---
 
 ## 3. Versionado
 
-SemVer desde **0.1.0** (actual: **0.2.0**). Cada cambio relevante sube la versión y deja rastro en `CHANGELOG.md`:
+SemVer desde **0.1.0** (actual: **0.3.0**). Cada cambio relevante sube la versión y deja rastro en `CHANGELOG.md`:
 
 ```bash
 npm run version:patch -- "Corrige el filtro de prédicas"   # 0.2.0 -> 0.2.1
@@ -111,6 +135,9 @@ play2/
 │   │       ├── providers/        itunes, youtube, spotify, soundcloud, vimeo
 │   │       ├── routes/           auth, catalog, playlists, library, rankings
 │   │       └── index.ts          CORS, /api/health, fallback SPA
+│   ├── mobile/              Capacitor 6 (Android / Android TV), webDir ../web/dist
+│   │   └── android/app/src/main/AndroidManifest.xml   LAUNCHER + LEANBACK_LAUNCHER
+│   ├── desktop/             Tauri 2: src-tauri/ (Cargo.toml, tauri.conf.json, icons)
 │   └── web/                 React 18 + Vite + Tailwind + zustand + framer-motion
 │       └── src/
 │           ├── pages/       Home, Search, Category, Ranking, Playlists, ...
@@ -204,4 +231,4 @@ Ampliar el catálogo = añadir artistas a `CHRISTIAN_ARTISTS` en `lib/purity.ts`
 
 ## 7. Siguientes pasos
 
-Ver [ROADMAP.md](ROADMAP.md): app de escritorio (Tauri), app móvil (Capacitor), base de datos real, OAuth de Spotify y sincronización offline.
+Ver [ROADMAP.md](ROADMAP.md): UI de 10 pies para Android TV, `.dmg` verificado, base de datos real (SQLite/Postgres), OAuth de Spotify, descargas offline y claves de Spotify/SoundCloud/Vimeo.

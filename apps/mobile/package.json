@@ -1,0 +1,21 @@
+{
+  "name": "@play2/mobile",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Play2 para Android (movil y Android TV)",
+  "scripts": {
+    "sync": "cap sync android",
+    "copy": "cap copy android",
+    "open": "cap open android",
+    "apk:debug": "cd android && ./gradlew assembleDebug",
+    "apk:release": "cd android && ./gradlew assembleRelease",
+    "install:tv": "bash scripts/install-tv.sh"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

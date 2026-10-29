@@ -35,7 +35,14 @@ Thumbs.db
 .idea/
 *.swp
 
-# mobile / desktop (futuro)
+# nativo: se versiona el proyecto, no los artefactos de build
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
 apps/desktop/release/
-apps/mobile/android/
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/capacitor-cordova-android-plugins/build/
+apps/mobile/android/local.properties
+apps/mobile/android/app/src/main/assets/public/
 apps/mobile/ios/

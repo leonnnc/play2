@@ -19,7 +19,7 @@ Orden de entrega acordado con el usuario: **web → escritorio → móvil**, con
 
 ## 2. Estado actual en una línea
 
-La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**: API + SPA compilan sin errores de TypeScript, el catálogo devuelve contenido cristiano real sin claves de API, y el flujo de registro/playlists/favoritos/ranking está implementado. **Falta**: app de escritorio y app móvil (bloqueadas por toolchains nativos ausentes en esta máquina, ver §7).
+La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**, y ya existen **APK nativo para móvil/Android TV (v0.3.0, funcionando)** y el scaffold de **escritorio con Tauri 2** (build en curso). La API responde por LAN, de modo que el APK instalado en la TV puede autenticarse y buscar. **Falta**: APK con UI de 10 pies real para TV, `.dmg` de escritorio verificado, y las claves de Spotify/SoundCloud/Vimeo (§7).
 
 ## 3. Cómo levantarlo
 
@@ -114,7 +114,23 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 | `apps/api/tests/track.test.ts` | 10 pruebas de `sanitizeTrack` |
 | `apps/api/tests/providers.test.ts` | 5 pruebas de `interleave`, `dedupe`, `providerStatus` |
 | `scripts/generate-icons.mjs` | Codificador PNG propio (zlib + supersampling 3×) para los iconos |
+| `scripts/lib/png.mjs` | Librería PNG compartida: CRC32, `encodePng`, degradado y paleta de marca |
+| `scripts/generate-tv-banner.mjs` | Banner de Android TV 320×180 con fuente de píxeles propia |
 | `scripts/bump-version.mjs` | Sube versión en 3 `package.json`, `VERSION` y `CHANGELOG.md` |
+
+### Apps nativas — `apps/mobile` y `apps/desktop`
+
+| Archivo | Responsabilidad |
+|---|---|
+| `apps/mobile/capacitor.config.ts` | `appId com.play2.app`, `webDir ../web/dist`, `androidScheme https`, `allowMixedContent`, `cleartext` |
+| `apps/mobile/android/app/src/main/AndroidManifest.xml` | Doble lanzador (`LAUNCHER` + `LEANBACK_LAUNCHER`), `banner`, `touchscreen`/`leanback` no requeridos, `usesCleartextTraffic` |
+| `apps/mobile/android/app/src/main/res/drawable/tv_banner.png` | Banner 320×180 generado por código |
+| `apps/mobile/android/app/build.gradle` | `versionCode 3`, `versionName 0.3.0` |
+| `apps/mobile/android/local.properties` | `sdk.dir=/Users/macmi/android-sdk` (no se versiona) |
+| `apps/desktop/src-tauri/tauri.conf.json` | Ventana 1280×820, `frontendDist ../../web/dist`, targets `dmg`+`app`, `identifier app.play2.desktop` |
+| `apps/desktop/src-tauri/src/{main,lib}.rs` | Punto de entrada y builder de Tauri |
+| `apps/desktop/src-tauri/capabilities/default.json` | Permisos `core:default` para la ventana `main` |
+| `dist/play2-0.3.0-android-tv.apk` | APK de depuración listo para instalar en móvil o TV |
 
 ## 5. Decisiones de arquitectura (y por qué)
 
@@ -129,6 +145,8 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 9. **PWA con la API siempre en red** — el service worker precachea el shell (HTML, JS, CSS, iconos, fuentes) pero `/api` va `NetworkOnly`: preferimos quedarnos sin datos a mostrar catálogo viejo o rankings mentirosos. Las carátulas (inmutables) sí van `CacheFirst` 30 días.
 10. **Iconos generados por código, no por dependencia** — `scripts/generate-icons.mjs` escribe PNG con zlib puro; cero paquetes nativos, reproducible con `npm run icons` y mismo logo en web, escritorio y móvil.
 11. **Pruebas contra `src/` con Vitest** — el código es ESM NodeNext (imports `.js`), así que el config reescribe `.js` → `.ts` con un plugin `pre`. Se prueba la lógica (pureza, sanitizado, agregador), no la infraestructura.
+12. **Un solo APK para móvil y TV** — el `AndroidManifest` declara `LAUNCHER` y `LEANBACK_LAUNCHER` en la misma activity, con `touchscreen required=false`. Evita flavors duplicados y permite probar en la TV el mismo binario que se instala en el teléfono. Lo que falta no es empaquetado sino **UI de 10 pies** (foco D-pad explícito, tamaños grandes).
+13. **La URL de la API se compila dentro del APK** (`VITE_API_URL=http://192.168.100.86:4000/api`) — en el WebView de Capacitor el `/api` relativo apunta al propio paquete y no existe. Consecuencia: **si la IP de la Mac cambia, hay que reconstruir el APK** (o mover la API a un dominio fijo). El CORS del API acepta `https://localhost`, `capacitor://localhost` e `ionic://localhost`, que son los orígenes reales del WebView.
 
 ### Rarezas descubiertas (no volver a tropezar)
 
@@ -136,7 +154,11 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 - **Música cristiana en Apple** está etiquetada como **"Música latina"**: filtrar por género cristiano eliminaría resultados válidos.
 - **Podcasts cristianos** sí llevan género **"Cristianismo"** / **"Religión y espiritualidad"**: ahí el filtro estricto sí funciona.
 - **`localhost` no resuelve en curl** en esta máquina: usar `127.0.0.1`.
-- **npm workspaces**: los scripts con `-w apps/api` requieren ejecutarse desde la raíz.
+- **npm workspaces**: los scripts con `-w apps/api` requieren ejecutarse desde la raíz. Un workspace nuevo (p. ej. `apps/mobile`) **no existe** hasta añadirlo al array `workspaces` del `package.json` raíz; si falta, `npm ls -w apps/mobile` responde "No workspaces found" y las dependencias se instalan en silencio sin quedar disponibles.
+- **Gradle 8.2.1 vs cmdline-tools nuevos**: avisa "understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered". Es un warning, el build sigue.
+- **`gradlew assembleDebug` tarda ~22 min la primera vez** en este i5 (dexado de Capacitor), ~3 min las siguientes. La compilación de Rust de Tauri excede el límite de 15 min de los procesos en segundo plano: lanzarla con `nohup` y revisar el log, porque la caché de `target/` hace que el relanzamiento continúe donde quedó.
+- **`sips` no rasteriza SVG**: por eso el banner de TV se genera con el codificador PNG propio, no desde un SVG.
+- **Direcciones de la Mac**: `en0` = `192.168.100.86`, `en1` = `192.168.100.87`. Es la IP que se compila dentro del APK.
 
 ## 6. Qué está verificado
 
@@ -163,13 +185,19 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 | `npm test` (v0.2.0) | **29 pruebas en 3 archivos, todas pasan** (`purity` 14, `track` 10, `providers` 5), 8.8 s |
 | `npm run build` (v0.2.0) | pasa; 1983 módulos, `sw.js` + `workbox` generados, **15 archivos precacheados (467 KiB)**, bundle 407 kB (124 kB gzip) |
 | `dist/manifest.webmanifest` | generado con iconos 192/512/maskable, `standalone`, `start_url: /` |
+| APK v0.3.0 (`aapt2 dump badging`) | `com.play2.app`, `versionCode 3`, `versionName 0.3.0`, minSdk 22, targetSdk 34, `leanback-launchable-activity`, `banner='res/drawable/tv_banner.png'`, `uses-feature-not-required: android.software.leanback`; 3.8 MB |
+| URL de API dentro del APK | `http://192.168.100.86:4000/api` presente en el bundle compilado |
+| `curl http://192.168.100.86:4000/api/health` | responde por LAN (`ok: true`), requisito para que el APK de la TV funcione |
 
 ## 7. Limitaciones conocidas
 
 - Persistencia en **un solo archivo JSON**: no apta para múltiples instancias ni concurrencia alta.
 - **Pruebas solo unitarias** (lógica de pureza, sanitizado y agregador). No hay e2e ni pruebas de las rutas HTTP.
 - **La PWA no reproduce offline**: el shell se instala y abre sin red, pero `/api` es `NetworkOnly`, así que sin conexión el catálogo aparece vacío. Descargas offline están en la fase móvil.
-- **Toolchains nativos ausentes en esta máquina**: no hay `rustc`/`cargo` (Tauri), ni Java/Android SDK (Capacitor Android), ni Xcode completo (iOS). El escritorio y el móvil no se pueden compilar aquí hasta instalarlos.
+- **Toolchain nativo**: ya instalados JDK 17 (`~/dev-tools/jdk-17`), Android SDK 34 (`~/android-sdk`) y Rust 1.99.1 (`~/.cargo`). **No hay Xcode completo**, así que iOS queda fuera hasta instalarlo. La compilación de Rust es lenta en este i5 (20-30 min la primera vez) y puede exceder límites de ejecución en segundo plano: relanzar con `nohup` reutiliza la caché de `target/`.
+- **La UI de la TV todavía no es de 10 pies**: el APK arranca y se navega con D-pad, pero usa el layout de móvil. Falta foco explícito, tipografía grande y navegación por filas.
+- **El APK depende de esta Mac encendida** con la API en `:4000` y de que la IP `192.168.100.86` no cambie; si cambia, reconstruir con `VITE_API_URL` actualizado.
+- **APK de depuración sin firma de release**: para Google Play hace falta un keystore y un `.aab` firmado.
 - **Spotify** usa client-credentials: reproduce vía embed y requiere cuenta del usuario; no hay OAuth de usuario ni "guardar en mi biblioteca".
 - **Previews de Apple** duran 30 s.
 - **Las claves de YouTube/Spotify/SoundCloud/Vimeo no están configuradas** en este entorno: esos proveedores aparecen como `missing_key` hasta que se añadan a `.env`.
@@ -181,7 +209,7 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 
 Prompt sugerido para retomar:
 
-> "Continúa Play2 en `/Users/macmi/Documents/webmini/play2`. Versión actual 0.2.0, web + PWA completadas. Lee `ESTADO-PROYECTO.md` y `README.md`. Siguiente tarea: [describir]. Al terminar, corre `npm test`, sube la versión con `npm run version:patch -- \"nota\"` y actualiza este archivo."
+> "Continúa Play2 en `/Users/macmi/Documents/webmini/play2`. Versión actual 0.3.0: web + PWA completadas, APK de Android TV/móvil funcionando y escritorio Tauri en build. Lee `ESTADO-PROYECTO.md` y `README.md`. Siguiente tarea: [describir]. Al terminar, corre `npm test`, sube la versión con `npm run version:patch -- \"nota\"` y actualiza este archivo."
 
 Reglas del proyecto:
 
@@ -193,10 +221,13 @@ Reglas del proyecto:
 
 ## 9. Próximos pasos concretos
 
-1. **App de escritorio con Tauri 2** (siguiente fase, v0.3.0). Antes hay que instalar Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`.
-2. Code splitting: hoy el bundle son 407 kB en un solo archivo (124 kB gzip); separar por ruta con `React.lazy`.
-3. Skeleton loaders por bloque y manejo explícito de proveedores caídos en la UI.
-4. Pruebas e2e del flujo completo (login → playlist → favoritos → ranking con actividad), p. ej. con `supertest` sobre la app de Express.
-5. Migración a SQLite al empaquetar el escritorio.
-6. App móvil con Capacitor (v0.4.0): requiere JDK 17 + Android SDK (Android) y Xcode (iOS).
-7. OAuth de Spotify para cuentas reales.
+1. **Cerrar el build de escritorio**: `cd apps/desktop && PATH="$HOME/.cargo/bin:$PATH" npm run build` y verificar el `.dmg` en `src-tauri/target/release/bundle/dmg/`. Después, considerar empaquetar la API como sidecar para que no dependa de la Mac.
+2. **UI de 10 pies para Android TV**: foco D-pad explícito (`tabIndex`, anillos de foco), filas horizontales, tipografía escalada con `matchMedia('(min-width: 960px)')` o detección de leanback; es el paso que convierte "se ve la app" en "se usa con el mando".
+3. **Probar el APK en la TV** (pendiente de autorización del usuario): `adb connect <IP>:5555`, `adb install -r dist/play2-0.3.0-android-tv.apk`, `adb shell monkey -p com.play2.app -c android.intent.category.LEANBACK_LAUNCHER 1`.
+4. **Claves de proveedores**: `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`, `SOUNDCLOUD_CLIENT_ID` y `VIMEO_ACCESS_TOKEN` en `.env`. YouTube ya funciona (restringir la clave a YouTube Data API v3 en Google Cloud porque el repo es público).
+5. Code splitting: hoy el bundle son 407 kB en un solo archivo (124 kB gzip); separar por ruta con `React.lazy`.
+6. Skeleton loaders por bloque y manejo explícito de proveedores caídos en la UI.
+7. Pruebas e2e del flujo completo (login → playlist → favoritos → ranking con actividad), p. ej. con `supertest` sobre la app de Express.
+8. Migración a SQLite al empaquetar el escritorio.
+9. iOS: requiere Xcode completo (Xcode CLT no basta) y cuenta de desarrollador.
+10. OAuth de Spotify para cuentas reales.

@@ -1,11 +1,13 @@
 {
   "name": "play2",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Play2 - Plataforma cristiana de musica: alabanzas, adoraciones, predicas y mas. Busca en YouTube, Spotify, SoundCloud, Vimeo y Apple Music previews.",
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "apps/mobile",
+    "apps/desktop"
   ],
   "scripts": {
     "dev": "concurrently -n API,WEB -c cyan,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",

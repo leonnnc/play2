@@ -17,30 +17,33 @@ Orden acordado: **web → escritorio → móvil**. Cada fase sube versión y act
 - [ ] Skeleton loaders por bloque y manejo de errores por proveedor en la UI
 - [ ] Pruebas de integración de las rutas HTTP de auth y playlists
 
-## Fase 2 — Escritorio (v0.3.0)
+## Fase 2 — Escritorio (v0.3.0) · scaffold + build en curso
 
 Objetivo: app nativa para Windows/macOS/Linux reutilizando el 100 % del frontend.
 
-**Requisito previo en esta máquina:** no hay `rustc`/`cargo` instalados, así que Tauri no puede compilar todavía. Instalar con `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` y reiniciar la terminal.
+**Toolchain ya instalado en esta máquina:** Rust 1.99.1 (`~/.cargo`), Xcode Command Line Tools. Pendiente de verificar: build de release y `.dmg`.
 
-- **Tauri 2** (recomendado): binario pequeño (~5-10 MB), WebView del sistema, buen consumo de RAM.
-  - Alternativa: Electron si se necesita compatibilidad amplia o plugins Node.
-- Empaquetar el `apps/api` como *sidecar* (binario) o levantar el servidor local al iniciar la app.
-- Persistencia local en SQLite (`better-sqlite3` o el plugin SQL de Tauri) en lugar del JSON.
-- Integración con el sistema: bandeja del sistema, controles multimedia nativos, notificaciones, atajos globales.
-- Auto-update (`tauri-plugin-updater`) firmado.
-- Iconos y splash con la identidad de Play2; tamaño de ventana mínimo 1024×700.
+- [x] **Tauri 2** configurado: ventana 1280×820 (mínimo 1024×700), `frontendDist ../../web/dist`, targets `dmg` + `app`, identificador `app.play2.desktop`, iconos generados con `tauri icon`.
+- [ ] Primer `tauri build` completo y `.dmg` firmado/funcional (compilando).
+- [ ] Empaquetar el `apps/api` como *sidecar* (binario) o levantar el servidor local al iniciar la app; hoy la app apunta a la API por LAN.
+- [ ] Persistencia local en SQLite (`better-sqlite3` o el plugin SQL de Tauri) en lugar del JSON.
+- [ ] Integración con el sistema: bandeja del sistema, controles multimedia nativos, notificaciones, atajos globales.
+- [ ] Auto-update (`tauri-plugin-updater`) firmado.
 
-## Fase 3 — Móvil (v0.4.0)
+## Fase 3 — Móvil + Android TV (v0.3.0) · APK funcionando
 
-**Requisito previo en esta máquina:** no hay Java Runtime ni Android SDK, y solo están las Command Line Tools (no Xcode completo). Para Android instalar JDK 17 + Android Studio; para iOS, Xcode desde la App Store.
+**Toolchain ya instalado en esta máquina:** JDK 17 (`~/dev-tools/jdk-17`), Android SDK 34 (`~/android-sdk`), adb 1.0.41. Falta Xcode completo para iOS.
 
-- **Capacitor** para reutilizar la web app (Android/iOS) o React Native si se busca rendimiento nativo y reproducción en segundo plano.
-- Reproducción en segundo plano y controles en pantalla de bloqueo.
-- Descargas offline de playlists y prédicas.
-- Login biométrico y almacenamiento seguro del token (Keychain/Keystore).
-- Deep links `play2://track/:id` y compartir.
-- Publicación: Google Play (cuenta de desarrollador) y App Store (revisión + política de contenido).
+- [x] **Capacitor 6.2.3** sobre la web app (`apps/mobile`), `appId com.play2.app`.
+- [x] APK único para móvil + Android TV (`LEANBACK_LAUNCHER`, banner 320×180, D-pad heredado, `touchscreen required=false`).
+- [x] CORS para los orígenes del WebView de Capacitor y URL de API compilada con `VITE_API_URL`.
+- [ ] **UI de 10 pies** para TV: foco D-pad explícito, tipografía grande, navegación por filas (hoy se ve como interfaz de móvil en pantalla grande).
+- [ ] Reproducción en segundo plano y controles en pantalla de bloqueo.
+- [ ] Descargas offline de playlists y prédicas.
+- [ ] Login biométrico y almacenamiento seguro del token (Keychain/Keystore).
+- [ ] Deep links `play2://track/:id` y compartir.
+- [ ] Publicación: Google Play (cuenta de desarrollador, APK/AAB firmado) y App Store (requiere Xcode + revisión).
+
 
 ## Fase 4 — Plataforma
 

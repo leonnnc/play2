@@ -1,0 +1,15 @@
+{
+  "name": "@play2/desktop",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Play2 para escritorio (Tauri 2)",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:dmg": "tauri build --bundles dmg",
+    "icons": "tauri icon ../web/public/icons/icon-512.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}

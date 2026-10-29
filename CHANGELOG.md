@@ -2,6 +2,24 @@
 
 Todos los cambios relevantes de Play2. Formato basado en Keep a Changelog y SemVer.
 
+## [0.3.0] - 2026-10-28
+
+Apps nativas: APK de Android para móvil **y Android TV**, y escritorio con Tauri.
+
+### Añadido
+
+- **`apps/mobile`** con Capacitor 6.2.3 (`appId com.play2.app`, `webDir ../web/dist`, `androidScheme https`, `allowMixedContent`, `cleartext`). Mismo APK para móvil, tablet, Android TV y Fire TV.
+- **Soporte Android TV** en `AndroidManifest.xml`: intent-filter `LEANBACK_LAUNCHER` junto al `LAUNCHER` normal, `android.banner="@drawable/tv_banner"`, `uses-feature` de `touchscreen` y `software.leanback` en `required="false"` y `usesCleartextTraffic="true"` para hablar con la API por LAN.
+- **Banner de TV 320×180** generado por código (`scripts/generate-tv-banner.mjs`) sobre la nueva librería `scripts/lib/png.mjs` (codificador PNG + degradado + fuente de píxeles, sin dependencias).
+- **Escritorio con Tauri 2** (`apps/desktop`): `Cargo.toml`, `tauri.conf.json` (ventana 1280×820, `frontendDist ../../web/dist`, targets `dmg` y `app`, `identifier app.play2.desktop`), `capabilities/default.json` e iconos generados con `tauri icon`.
+- **APK de depuración** `dist/play2-0.3.0-android-tv.apk` (3.8 MB) con la URL de la API compilada dentro (`VITE_API_URL`), porque dentro del WebView el `/api` relativo no existe.
+- Documentación de toolchain nativo: JDK 17, Android SDK 34 y Rust 1.99.1 instalados fuera del repo (`~/dev-tools/jdk-17`, `~/android-sdk`, `~/.cargo`).
+
+### Cambiado
+
+- `apps/api/src/index.ts`: CORS acepta los orígenes propios del WebView de Capacitor (`https://localhost`, `capacitor://localhost`, `ionic://localhost`), sin los cuales el APK no puede autenticarse.
+- Versión de Android (`versionCode 3`, `versionName 0.3.0`) alineada con el SemVer del proyecto.
+
 ## [0.2.0] - 2026-10-27
 
 PWA instalable y primera red de pruebas automatizadas.
