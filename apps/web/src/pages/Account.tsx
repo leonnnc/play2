@@ -59,7 +59,13 @@ export function Account() {
             ? 'Spotify no devolvió el código de autorización'
             : reason === 'invalid_state'
               ? 'El enlace caducó (10 min). Inténtalo de nuevo'
-              : reason || 'No se pudo completar la conexión';
+              : reason.includes('invalid_client')
+                ? 'Client Secret incorrecto: revísalo en .env y reinicia la API'
+                : reason.includes('invalid_grant')
+                  ? 'El código expiró o ya se usó. Inténtalo otra vez'
+                  : reason.includes('redirect_uri')
+                    ? 'El Redirect URI no coincide con el del dashboard de Spotify'
+                    : reason || 'No se pudo completar la conexión';
       toast(`Spotify: ${friendly}`, 'error');
     }
 
