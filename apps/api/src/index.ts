@@ -23,7 +23,12 @@ app.use(
     origin(origin, cb) {
       // Origenes propios del WebView de Capacitor (app movil y Android TV):
       // alli el "origin" no es http sino el scheme interno de la app.
-      const appOrigins = ['https://localhost', 'capacitor://localhost', 'ionic://localhost'];
+      const appOrigins = [
+        'http://localhost',
+        'https://localhost',
+        'capacitor://localhost',
+        'ionic://localhost',
+      ];
       // permitir herramientas locales (sin origin), los origenes configurados
       // y cualquier equipo de la red local que sirva la app (p. ej. la TV)
       if (

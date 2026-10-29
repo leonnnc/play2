@@ -46,3 +46,4 @@ apps/mobile/android/capacitor-cordova-android-plugins/build/
 apps/mobile/android/local.properties
 apps/mobile/android/app/src/main/assets/public/
 apps/mobile/ios/
+.tmp-tv/

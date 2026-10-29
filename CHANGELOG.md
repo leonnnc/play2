@@ -23,8 +23,14 @@ Integración de Spotify con **OAuth de usuario**: perfil, canciones más escucha
 - `config.ts` gana `spotifyRedirectUri` y `webAppUrl` (`WEB_APP_URL`, por defecto `http://localhost:5173`) para saber a dónde volver tras el callback.
 - `/me/playlists` y `/me/top-tracks` filtran los `null` que la API de Spotify devuelve cuando un ítem ya no está disponible en el mercado.
 
+### Corregido
+
+- **WebView de Android TV bloqueaba la API**: con `androidScheme: 'https'` la página vive en `https://localhost` y toda llamada a `http://192.168.x.x:4000` se descarta por **contenido mixto**. `allowMixedContent: true` **no** se respeta en los WebView de TV, así que el esquema pasa a `http` (origen `http://localhost`, sin contenido mixto) y ese origen se añade al CORS de la API.
+- El JDK de este equipo está en `~/dev-tools/jdk-17/Contents/Home`; apuntar `JAVA_HOME` a `~/dev-tools/jdk-17` hace fallar Gradle con "JAVA_HOME is set to an invalid directory".
+
 ### Notas
 
+- **APK 0.4.0 (`versionCode 4`) instalado y verificado en una TCL Smart TV Pro (Android 12)** por ADB inalámbrico: búsqueda agregada con carátulas de Apple y YouTube y reproducción en curso (`0:09 / 24:22`). Capturas en `docs/capturas/`.
 - Scopes solicitados: `user-read-private`, `user-read-email`, `user-top-read`, `playlist-read-private`, `playlist-read-collaborative`, `user-library-read`. Todos de lectura.
 - El **Client Secret** sigue fuera del repositorio (`.env` está en `.gitignore`); solo el Client ID, que es público por diseño, queda versionado en `.env.example`.
 

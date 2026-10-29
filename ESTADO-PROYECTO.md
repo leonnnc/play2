@@ -19,7 +19,7 @@ Orden de entrega acordado con el usuario: **web → escritorio → móvil**, con
 
 ## 2. Estado actual en una línea
 
-La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**; existen **APK nativo para móvil/Android TV (v0.3.0, funcionando)** y **`.dmg` de escritorio con Tauri 2 (v0.3.0)**. La v0.4.0 añade **Spotify de usuario** (OAuth, más escuchadas y playlists). La API responde por LAN, de modo que el APK instalado en la TV puede autenticarse y buscar. **Falta**: APK con UI de 10 pies real para TV, llevar el callback de Spotify al APK/escritorio, y las claves de SoundCloud/Vimeo (§7).
+La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**; existen **APK nativo para móvil/Android TV (v0.4.0, instalado y funcionando en una TV real)** y **`.dmg` de escritorio con Tauri 2 (v0.3.0)**. La v0.4.0 añade **Spotify de usuario** (OAuth, más escuchadas y playlists). La API responde por LAN, de modo que el APK instalado en la TV puede autenticarse y buscar. **El APK 0.4.0 ya corre en una TCL Smart TV Pro real** (búsqueda y reproducción verificadas). **Falta**: UI de 10 pies real para TV, llevar el callback de Spotify al APK/escritorio, y las claves de SoundCloud/Vimeo (§7).
 
 ## 3. Cómo levantarlo
 
@@ -58,7 +58,7 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 |---|---|
 | `config.ts` | Carga `.env` (raíz y apps/api), versión desde `package.json`, puerto, JWT, CORS, rutas de datos y claves de proveedores |
 | `types.ts` | Contratos: `Track`, `ProviderReport`, `UserRecord`, `PlaylistRecord`, `FavoriteRecord`, `PlayRecord`, `Database` |
-| `index.ts` | Express: CORS con whitelist, `/api/health`, montaje de routers, estáticos de `apps/web/dist` y fallback SPA `^(?!\/api).*` |
+| `index.ts` | Express: CORS con whitelist (incluye `http://localhost` y `https://localhost` del WebView), `/api/health`, montaje de routers, estáticos de `apps/web/dist` y fallback SPA `^(?!\/api).*` |
 | `data/categories.ts` | Las 8 categorías con `queries` curadas, `itunesMedia`, icono lucide y acento de color |
 | `lib/store.ts` | Persistencia JSON con escritura atómica (tmp + rename) y debounce de 250 ms; `uid()`, `prune()` |
 | `lib/cache.ts` | `cacheGet/cacheSet/cached` (TTL), `withTimeout`, `fetchJson` con errores legibles |
@@ -132,7 +132,8 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 | `apps/desktop/src-tauri/tauri.conf.json` | Ventana 1280×820, `frontendDist ../../web/dist`, targets `dmg`+`app`, `identifier app.play2.desktop` |
 | `apps/desktop/src-tauri/src/{main,lib}.rs` | Punto de entrada y builder de Tauri |
 | `apps/desktop/src-tauri/capabilities/default.json` | Permisos `core:default` para la ventana `main` |
-| `dist/play2-0.3.0-android-tv.apk` | APK de depuración listo para instalar en móvil o TV |
+| `dist/play2-0.4.0-android-tv.apk` | APK de depuración (versionCode 4) con el panel de Spotify; instalado en la TV |
+| `docs/capturas/android-tv-0.4.0-*.png` | Capturas de la app corriendo en la TCL (portada y resultados) |
 
 ## 5. Decisiones de arquitectura (y por qué)
 
@@ -161,6 +162,10 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 - **`gradlew assembleDebug` tarda ~22 min la primera vez** en este i5 (dexado de Capacitor), ~3 min las siguientes. La compilación de Rust de Tauri excede el límite de 15 min de los procesos en segundo plano: lanzarla con `nohup` y revisar el log, porque la caché de `target/` hace que el relanzamiento continúe donde quedó.
 - **`sips` no rasteriza SVG**: por eso el banner de TV se genera con el codificador PNG propio, no desde un SVG.
 - **Direcciones de la Mac**: `en0` = `192.168.100.86`, `en1` = `192.168.100.87`. Es la IP que se compila dentro del APK.
+- **Contenido mixto en Android TV**: con `androidScheme: 'https'` el WebView descarta toda llamada a `http://192.168.x.x` y `allowMixedContent: true` **no** se respeta en los WebView de TV. La app usa `androidScheme: 'http'` (origen `http://localhost`) y ese origen está en el CORS del API. Si algún día se sirve la API por HTTPS, se puede volver a `https`.
+- **JAVA_HOME en este equipo**: el JDK está en `~/dev-tools/jdk-17/Contents/Home` (con `Contents/Home`), no en `~/dev-tools/jdk-17`.
+- **`gradlew assembleDebug`**: 2m31s cambiando el APK, **15 s** si solo cambian assets web (la caché de Gradle hace el resto).
+- **TV de pruebas**: TCL Smart TV Pro, Android 12, `192.168.100.10:5555`, serial `3802605601804E0B`. Se conecta con `adb connect 192.168.100.10:5555` (la depuración de red ya está autorizada).
 
 ## 6. Qué está verificado
 
@@ -197,6 +202,10 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 | `GET /api/auth/spotify/url` | URL de `accounts.spotify.com/authorize` con `client_id`, `redirect_uri` codificado, los 6 scopes y `state` JWT |
 | `GET /api/spotify/me` y `/me/top-tracks` sin cuenta | **409** `{code:'not_linked'}` |
 | `GET /api/auth/spotify/callback` sin `code` | **302** → `http://localhost:5173/cuenta?spotify=error&reason=missing_code` |
+| `adb install` APK 0.4.0 en la TCL | `Success`; `versionCode=4`, `versionName=0.4.0` en el dispositivo |
+| Arranque en la TV | `mResumedActivity: com.play2.app/.MainActivity`, sin errores de consola salvo el service worker (irrelevante en WebView) |
+| Búsqueda real desde la TV | "kary kobe" → 5 resultados con carátula, fuente (APPLE / YOUTUBE) y duración |
+| Reproducción en la TV | podcast en curso, `0:09 / 24:22`, barra de reproducción activa |
 
 > **Sin verificar todavía**: el intercambio real del `code` y las llamadas a `/me`, `/me/top-tracks` y `/me/playlists`
 > contra Spotify. Las rutas responden y la URL de autorización es válida, pero el round-trip necesita

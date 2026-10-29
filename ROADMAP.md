@@ -36,6 +36,7 @@ Objetivo: app nativa para Windows/macOS/Linux reutilizando el 100 % del frontend
 
 - [x] **Capacitor 6.2.3** sobre la web app (`apps/mobile`), `appId com.play2.app`.
 - [x] APK único para móvil + Android TV (`LEANBACK_LAUNCHER`, banner 320×180, D-pad heredado, `touchscreen required=false`).
+- [x] **APK 0.4.0 instalado en una TCL Smart TV Pro por ADB** y verificado: búsqueda agregada con carátulas y reproducción en curso. Requirió `androidScheme: 'http'` (con `https` el WebView bloquea la API local por contenido mixto). Capturas en `docs/capturas/`.
 - [x] CORS para los orígenes del WebView de Capacitor y URL de API compilada con `VITE_API_URL`.
 - [ ] **UI de 10 pies** para TV: foco D-pad explícito, tipografía grande, navegación por filas (hoy se ve como interfaz de móvil en pantalla grande).
 - [ ] Reproducción en segundo plano y controles en pantalla de bloqueo.

@@ -17,7 +17,11 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
   },
   server: {
-    androidScheme: 'https',
+    // `http` y no `https`: con https el WebView de Android TV bloquea las
+    // peticiones a la API local (http://192.168.x.x:4000) por contenido mixto,
+    // y `allowMixedContent` no se respeta en los WebView de TV. Con http el
+    // origen es http://localhost y la API por LAN deja de ser contenido mixto.
+    androidScheme: 'http',
     cleartext: true,
   },
 };
