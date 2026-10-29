@@ -113,3 +113,27 @@ export interface BrowseResponse {
   tracks: Track[];
   reports: ProviderReport[];
 }
+
+export interface SpotifyStatus {
+  configured: boolean;
+  clientIdPresent: boolean;
+  redirectUri: string;
+  linked: boolean;
+  displayName?: string;
+  product?: string;
+  country?: string;
+  scopes: string[];
+  linkedAt?: string;
+}
+
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  description?: string;
+  trackCount: number;
+  artwork?: string;
+  url: string;
+  owner?: string;
+}
+
+export type SpotifyTimeRange = 'short_term' | 'medium_term' | 'long_term';

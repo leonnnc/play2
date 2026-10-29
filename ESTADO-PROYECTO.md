@@ -1,7 +1,7 @@
 # Play2 · Estado del proyecto y guía de continuidad
 
 > **Lee este archivo primero si retomas el proyecto sin contexto previo.**
-> Última actualización: **2026-10-27** · Versión: **0.2.0** · Fase: web + PWA instalable.
+> Última actualización: **2026-10-29** · Versión: **0.4.0** · Fase: web + PWA + Spotify de usuario + apps nativas en pruebas.
 
 ---
 
@@ -19,7 +19,7 @@ Orden de entrega acordado con el usuario: **web → escritorio → móvil**, con
 
 ## 2. Estado actual en una línea
 
-La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**, y ya existen **APK nativo para móvil/Android TV (v0.3.0, funcionando)** y el scaffold de **escritorio con Tauri 2** (build en curso). La API responde por LAN, de modo que el APK instalado en la TV puede autenticarse y buscar. **Falta**: APK con UI de 10 pies real para TV, `.dmg` de escritorio verificado, y las claves de Spotify/SoundCloud/Vimeo (§7).
+La **web está completa, instalable como PWA y con 29 pruebas automatizadas en verde**; existen **APK nativo para móvil/Android TV (v0.3.0, funcionando)** y **`.dmg` de escritorio con Tauri 2 (v0.3.0)**. La v0.4.0 añade **Spotify de usuario** (OAuth, más escuchadas y playlists). La API responde por LAN, de modo que el APK instalado en la TV puede autenticarse y buscar. **Falta**: APK con UI de 10 pies real para TV, llevar el callback de Spotify al APK/escritorio, y las claves de SoundCloud/Vimeo (§7).
 
 ## 3. Cómo levantarlo
 
@@ -68,7 +68,7 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 | `lib/track.ts` | `sanitizeTrack()`: valida y normaliza cualquier track que envíe el cliente |
 | `providers/itunes.ts` | Búsqueda sin clave (song / podcast / musicVideo), artwork a 600×600, filtra contenido explícito, `lang=es_es` |
 | `providers/youtube.ts` | YouTube Data API v3 (`search` + `videos` para duración); embed con IFrame API |
-| `providers/spotify.ts` | Client credentials + `/v1/search`; embed de Spotify |
+| `providers/spotify.ts` | **Dos modos**: client credentials + `/v1/search` (catálogo) y Authorization Code (`buildAuthorizeUrl`, `exchangeCode`, `refreshUserToken`, `ensureFreshToken`, `getProfile`, `getTopTracks`, `getUserPlaylists`); embed de Spotify |
 | `providers/soundcloud.ts` | `/tracks?q=` con `client_id`; widget embed |
 | `providers/vimeo.ts` | `/videos?query=` con bearer token; player embed |
 | `providers/index.ts` | Registro de proveedores, `providerStatus()`, `interleave()`, `dedupe()`, `aggregateSearch()`, `browseCategory()`, `trendingFallback()` |
@@ -77,6 +77,7 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 | `routes/playlists.ts` | CRUD de playlists + añadir/quitar tracks + playlist pública |
 | `routes/library.ts` | Favoritos, historial y `POST /play` (alimenta el ranking) |
 | `routes/rankings.ts` | Ranking por ventana 7/30/90 días, filtro por categoría, fallback curado, caché 60 s |
+| `routes/spotify.ts` | OAuth de usuario: `spotifyAuthRouter` (`/url`, `/callback` con `state` JWT de 10 min) y `spotifyRouter` (`/status`, `/me`, `/me/top-tracks`, `/me/playlists`, `DELETE /link`) |
 
 ### Frontend — `apps/web/src`
 
@@ -98,6 +99,7 @@ La PWA solo se registra en **producción**. Para probarla hay que construir y se
 | `components/PlayerBar.tsx` | Reproductor: audio/embed, progreso, volumen, cola, shuffle/repeat |
 | `components/TrackCard.tsx` / `TrackRow.tsx` | Tarjeta y fila de track (música / sermón) |
 | `components/TrackActions.tsx` | Menú de acciones: favorito, añadir a playlist, abrir original |
+| `components/SpotifyPanel.tsx` | Tarjeta de Spotify en `/cuenta`: vincular/desvincular, perfil, top tracks por rango y playlists |
 | `components/ui.tsx` | Botones, chips, modales, skeletons reutilizables |
 | `pages/*` | 11 páginas: Home, SearchPage, CategoryPage, Ranking, Playlists, PlaylistDetail, Favorites, Account, Login, Register, NotFound |
 | `main.tsx` | Monta la app y registra el service worker (`virtual:pwa-register`) solo en producción |
@@ -188,6 +190,17 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 | APK v0.3.0 (`aapt2 dump badging`) | `com.play2.app`, `versionCode 3`, `versionName 0.3.0`, minSdk 22, targetSdk 34, `leanback-launchable-activity`, `banner='res/drawable/tv_banner.png'`, `uses-feature-not-required: android.software.leanback`; 3.8 MB |
 | URL de API dentro del APK | `http://192.168.100.86:4000/api` presente en el bundle compilado |
 | `curl http://192.168.100.86:4000/api/health` | responde por LAN (`ok: true`), requisito para que el APK de la TV funcione |
+| `npm run typecheck` v0.4.0 (api + web) | pasa sin errores |
+| `npm test` v0.4.0 | **29 pruebas en 3 archivos, todas pasan** (3.2 s) |
+| `npm run build` v0.4.0 | pasa; 1984 módulos, bundle 418 kB (126 kB gzip), 15 archivos precacheados |
+| `GET /api/spotify/status` (usuario sin vincular) | `configured:false`, `clientIdPresent:true`, `redirectUri:http://127.0.0.1:4000/api/auth/spotify/callback`, `linked:false` |
+| `GET /api/auth/spotify/url` | URL de `accounts.spotify.com/authorize` con `client_id`, `redirect_uri` codificado, los 6 scopes y `state` JWT |
+| `GET /api/spotify/me` y `/me/top-tracks` sin cuenta | **409** `{code:'not_linked'}` |
+| `GET /api/auth/spotify/callback` sin `code` | **302** → `http://localhost:5173/cuenta?spotify=error&reason=missing_code` |
+
+> **Sin verificar todavía**: el intercambio real del `code` y las llamadas a `/me`, `/me/top-tracks` y `/me/playlists`
+> contra Spotify. Las rutas responden y la URL de autorización es válida, pero el round-trip necesita
+> `SPOTIFY_CLIENT_SECRET` en `.env` (§7).
 
 ## 7. Limitaciones conocidas
 
@@ -198,7 +211,7 @@ Servidor de prueba: `PORT=4100 DATA_FILE=/tmp/play2-smoke.json node apps/api/dis
 - **La UI de la TV todavía no es de 10 pies**: el APK arranca y se navega con D-pad, pero usa el layout de móvil. Falta foco explícito, tipografía grande y navegación por filas.
 - **El APK depende de esta Mac encendida** con la API en `:4000` y de que la IP `192.168.100.86` no cambie; si cambia, reconstruir con `VITE_API_URL` actualizado.
 - **APK de depuración sin firma de release**: para Google Play hace falta un keystore y un `.aab` firmado.
-- **Spotify** usa client-credentials: reproduce vía embed y requiere cuenta del usuario; no hay OAuth de usuario ni "guardar en mi biblioteca".
+- **Spotify** reproduce vía embed (requiere cuenta del usuario). El OAuth de usuario (v0.4.0) es de **solo lectura**: no guarda favoritos ni crea playlists en Spotify. Además el callback `http://127.0.0.1:4000/...` solo funciona en la web local; en el APK/TV o el escritorio hace falta un dominio o proxy al API.
 - **Previews de Apple** duran 30 s.
 - **Las claves de YouTube/Spotify/SoundCloud/Vimeo no están configuradas** en este entorno: esos proveedores aparecen como `missing_key` hasta que se añadan a `.env`.
 - **Filtro de pureza heurístico**: combina géneros, lista de artistas y palabras clave. Puede descartar algún track cristiano de artista independiente no listado; se corrige añadiéndolo a `CHRISTIAN_ARTISTS` en `lib/purity.ts`.
@@ -224,10 +237,11 @@ Reglas del proyecto:
 1. **Cerrar el build de escritorio**: `cd apps/desktop && PATH="$HOME/.cargo/bin:$PATH" npm run build` y verificar el `.dmg` en `src-tauri/target/release/bundle/dmg/`. Después, considerar empaquetar la API como sidecar para que no dependa de la Mac.
 2. **UI de 10 pies para Android TV**: foco D-pad explícito (`tabIndex`, anillos de foco), filas horizontales, tipografía escalada con `matchMedia('(min-width: 960px)')` o detección de leanback; es el paso que convierte "se ve la app" en "se usa con el mando".
 3. **Probar el APK en la TV** (pendiente de autorización del usuario): `adb connect <IP>:5555`, `adb install -r dist/play2-0.3.0-android-tv.apk`, `adb shell monkey -p com.play2.app -c android.intent.category.LEANBACK_LAUNCHER 1`.
-4. **Claves de proveedores**: `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`, `SOUNDCLOUD_CLIENT_ID` y `VIMEO_ACCESS_TOKEN` en `.env`. YouTube ya funciona (restringir la clave a YouTube Data API v3 en Google Cloud porque el repo es público).
+4. **Claves de proveedores**: falta pegar `SPOTIFY_CLIENT_SECRET` en `.env` (el Client ID ya está) y añadir `SOUNDCLOUD_CLIENT_ID` / `VIMEO_ACCESS_TOKEN`. YouTube ya funciona (restringir la clave a YouTube Data API v3 en Google Cloud porque el repo es público).
 5. Code splitting: hoy el bundle son 407 kB en un solo archivo (124 kB gzip); separar por ruta con `React.lazy`.
 6. Skeleton loaders por bloque y manejo explícito de proveedores caídos en la UI.
 7. Pruebas e2e del flujo completo (login → playlist → favoritos → ranking con actividad), p. ej. con `supertest` sobre la app de Express.
 8. Migración a SQLite al empaquetar el escritorio.
 9. iOS: requiere Xcode completo (Xcode CLT no basta) y cuenta de desarrollador.
-10. OAuth de Spotify para cuentas reales.
+10. ~~OAuth de Spotify para cuentas reales~~ → **hecho en v0.4.0**. Siguiente: callback alcanzable desde el APK/escritorio y permisos de escritura (`user-library-modify`).
+11. **Probar el OAuth de punta a punta** en cuanto exista el Client Secret: dashboard con `http://127.0.0.1:4000/api/auth/spotify/callback`, `/cuenta → Conectar con Spotify`, y comprobar `/api/spotify/me`.

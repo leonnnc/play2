@@ -11,7 +11,8 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { SpotifyPanel } from '../components/SpotifyPanel';
 import { EmptyState } from '../components/ui';
 import { formatDate, initials, PROVIDER_LABEL } from '../lib/format';
 import type { ProviderId } from '../lib/types';
@@ -28,6 +29,7 @@ export function Account() {
   const { clearHistory } = useLibrary();
   const toast = useUI((s) => s.toast);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [name, setName] = useState(user?.name ?? '');
   const [pickedCats, setPickedCats] = useState<string[]>(user?.prefs.categories ?? []);
@@ -40,6 +42,32 @@ export function Account() {
     setPickedCats(user.prefs.categories);
     setPickedProviders(user.prefs.providers);
   }, [user]);
+
+  // Resultado del callback OAuth de Spotify: /cuenta?spotify=ok|error&reason=...
+  useEffect(() => {
+    const result = searchParams.get('spotify');
+    if (!result) return;
+
+    if (result === 'ok') {
+      toast('Cuenta de Spotify conectada', 'success');
+    } else {
+      const reason = searchParams.get('reason') ?? '';
+      const friendly =
+        reason === 'access_denied'
+          ? 'Cancelaste la autorización en Spotify'
+          : reason === 'missing_code'
+            ? 'Spotify no devolvió el código de autorización'
+            : reason === 'invalid_state'
+              ? 'El enlace caducó (10 min). Inténtalo de nuevo'
+              : reason || 'No se pudo completar la conexión';
+      toast(`Spotify: ${friendly}`, 'error');
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('spotify');
+    next.delete('reason');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, toast]);
 
   if (!user) {
     return (
@@ -218,6 +246,10 @@ export function Account() {
           </div>
         </motion.section>
       </div>
+
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <SpotifyPanel />
+      </motion.div>
 
       <section className="rounded-3xl border border-white/10 bg-white/[0.025] p-5 sm:p-6">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-white">

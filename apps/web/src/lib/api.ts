@@ -8,6 +8,9 @@ import type {
   ProviderId,
   ProviderStatus,
   RankingsResponse,
+  SpotifyPlaylist,
+  SpotifyStatus,
+  SpotifyTimeRange,
   SearchResponse,
   Track,
   TrackKind,
@@ -111,6 +114,23 @@ export const api = {
       body: JSON.stringify({ email, password }),
       auth: false,
     }),
+
+  spotifyStatus: () => request<SpotifyStatus>('/spotify/status'),
+
+  spotifyConnectUrl: () =>
+    request<{ url: string; redirectUri: string; scopes: string[]; note: string }>(
+      '/auth/spotify/url',
+    ),
+
+  spotifyTopTracks: (timeRange: SpotifyTimeRange = 'medium_term', limit = 10) =>
+    request<{ timeRange: SpotifyTimeRange; tracks: Track[] }>(
+      `/spotify/me/top-tracks?${qs({ time_range: timeRange, limit })}`,
+    ),
+
+  spotifyPlaylists: (limit = 20) =>
+    request<{ playlists: SpotifyPlaylist[] }>(`/spotify/me/playlists?${qs({ limit })}`),
+
+  spotifyUnlink: () => request<{ ok: boolean }>('/spotify/link', { method: 'DELETE' }),
 
   me: () => request<{ user: User }>('/auth/me'),
 

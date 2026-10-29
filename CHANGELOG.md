@@ -2,6 +2,32 @@
 
 Todos los cambios relevantes de Play2. Formato basado en Keep a Changelog y SemVer.
 
+## [0.4.0] - 2026-10-29
+
+Integración de Spotify con **OAuth de usuario**: perfil, canciones más escuchadas y playlists propias.
+
+### Añadido
+
+- **Flujo Authorization Code de Spotify** (`apps/api/src/providers/spotify.ts`): `buildAuthorizeUrl`, `exchangeCode`, `refreshUserToken`, `ensureFreshToken`, `getProfile`, `getTopTracks` y `getUserPlaylists`, conviviendo con el client-credentials que ya alimentaba la búsqueda de catálogo.
+- **`apps/api/src/routes/spotify.ts`**: `GET /api/auth/spotify/url` (genera la URL de autorización), `GET /api/auth/spotify/callback` (intercambia el código, guarda el token y vuelve a `/cuenta`), y bajo `/api/spotify`: `GET /status`, `GET /me`, `GET /me/top-tracks?time_range=&limit=`, `GET /me/playlists?limit=` y `DELETE /link`.
+- **`state` firmado como JWT** (`{sub, purpose: 'spotify-oauth'}`, 10 min): ata el callback al usuario de Play2 sin sesiones en servidor.
+- **Persistencia por usuario** de `accessToken`, `refreshToken`, `expiresAt`, `scope` y perfil de Spotify en `UserRecord.spotify` (`apps/api/src/types.ts`); el token nunca toca el navegador.
+- **Refresco automático** del token cuando le quedan menos de 60 s: renueva y guarda el nuevo `refresh_token`; si Spotify lo rechaza responde `401 reauth_required`, y sin cuenta vinculada `409 not_linked`.
+- **Panel de Spotify en `/cuenta`** (`apps/web/src/components/SpotifyPanel.tsx`): estado de la vinculación, botón de conexión, perfil (`displayName`, plan, país, permisos), top tracks con los tres rangos (`4 semanas` / `6 meses` / `todo el tiempo`) reproduciendo con el `PlayerBar`, grid de playlists con carátula y enlace a Spotify, actualizar y desvincular.
+- **Aviso del callback**: `/cuenta?spotify=ok|error&reason=...` muestra toast y limpia la query (`access_denied`, `missing_code`, `invalid_state` o el error del intercambio).
+- Cinco métodos nuevos en `apps/web/src/lib/api.ts` (`spotifyStatus`, `spotifyConnectUrl`, `spotifyTopTracks`, `spotifyPlaylists`, `spotifyUnlink`) y tipos `SpotifyStatus` / `SpotifyPlaylist` / `SpotifyTimeRange`.
+
+### Cambiado
+
+- **`SPOTIFY_REDIRECT_URI` por defecto pasa a `http://127.0.0.1:4000/api/auth/spotify/callback`**: Spotify **rechaza `localhost`** y solo permite HTTP en direcciones de loopback (`127.0.0.1`, `[::1]`).
+- `config.ts` gana `spotifyRedirectUri` y `webAppUrl` (`WEB_APP_URL`, por defecto `http://localhost:5173`) para saber a dónde volver tras el callback.
+- `/me/playlists` y `/me/top-tracks` filtran los `null` que la API de Spotify devuelve cuando un ítem ya no está disponible en el mercado.
+
+### Notas
+
+- Scopes solicitados: `user-read-private`, `user-read-email`, `user-top-read`, `playlist-read-private`, `playlist-read-collaborative`, `user-library-read`. Todos de lectura.
+- El **Client Secret** sigue fuera del repositorio (`.env` está en `.gitignore`); solo el Client ID, que es público por diseño, queda versionado en `.env.example`.
+
 ## [0.3.0] - 2026-10-28
 
 Apps nativas: APK de Android para móvil **y Android TV**, y escritorio con Tauri.

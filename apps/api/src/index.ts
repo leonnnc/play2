@@ -9,6 +9,7 @@ import { catalogRouter } from './routes/catalog.js';
 import { playlistsRouter } from './routes/playlists.js';
 import { libraryRouter } from './routes/library.js';
 import { rankingsRouter } from './routes/rankings.js';
+import { spotifyAuthRouter, spotifyRouter } from './routes/spotify.js';
 import { providerStatus } from './providers/index.js';
 
 store.load();
@@ -51,7 +52,9 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+app.use('/api/auth/spotify', spotifyAuthRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/spotify', spotifyRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/playlists', playlistsRouter);
 app.use('/api/library', libraryRouter);

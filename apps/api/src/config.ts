@@ -43,6 +43,11 @@ export const config = {
     vimeo: process.env.VIMEO_ACCESS_TOKEN ?? '',
   },
   itunesCountry: process.env.ITUNES_COUNTRY ?? 'PE',
+  /** Debe coincidir exactamente con un Redirect URI del dashboard de Spotify. */
+  spotifyRedirectUri:
+    process.env.SPOTIFY_REDIRECT_URI ?? 'http://127.0.0.1:4000/api/auth/spotify/callback',
+  /** A donde vuelve el navegador despues del OAuth. */
+  webAppUrl: (process.env.WEB_APP_URL ?? 'http://localhost:5173').replace(/\/$/, ''),
 };
 
 export const isProd = config.env === 'production';

@@ -25,11 +25,36 @@ Plataforma de música **netamente cristiana**: alabanzas, adoraciones, himnos, c
 |---|---|---|---|
 | Apple Music / iTunes | — (solo `ITUNES_COUNTRY`) | — | Previews de 30 s reproducibles en la app. **Siempre activo** |
 | YouTube | `YOUTUBE_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → habilitar *YouTube Data API v3* | Videoclips y prédicas completas (reproductor embebido) |
-| Spotify | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) | Catálogo Spotify (embed, requiere cuenta) |
+| Spotify | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` | [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) | Catálogo Spotify (embed) **y** tu cuenta: perfil, más escuchadas y playlists |
 | SoundCloud | `SOUNDCLOUD_CLIENT_ID` | [developers.soundcloud.com](https://developers.soundcloud.com/) | Tracks de artistas independientes |
 | Vimeo | `VIMEO_ACCESS_TOKEN` | [developer.vimeo.com/apps](https://developer.vimeo.com/apps) | Videos de iglesias y productoras |
 
 > Sin clave, el proveedor aparece en la UI como **"sin key"** con la pista de qué variable falta. No rompe la búsqueda: se sigue consultando el resto.
+
+### Conectar tu cuenta de Spotify (opcional, v0.4.0)
+
+Además de buscar en el catálogo, Play2 puede leer **tu** Spotify: perfil, canciones más escuchadas (4 semanas / 6 meses / todo el tiempo) y tus playlists. Se hace con *Authorization Code* y el token queda guardado en tu usuario, nunca en el navegador.
+
+1. En [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) crea o abre la app y ponle nombre **Play2**.
+2. En **Redirect URIs** registra exactamente:
+
+   ```
+   http://127.0.0.1:4000/api/auth/spotify/callback
+   ```
+
+   Spotify **no acepta `localhost`** y solo permite `http://` en direcciones de loopback (`127.0.0.1`, `[::1]`). Si usas otro puerto u otro dominio, cambia también `SPOTIFY_REDIRECT_URI` en `.env`: los dos valores deben coincidir **byte a byte**.
+3. Copia el **Client ID** y el **Client Secret** a `.env`:
+
+   ```env
+   SPOTIFY_CLIENT_ID=...
+   SPOTIFY_CLIENT_SECRET=...
+   SPOTIFY_REDIRECT_URI=http://127.0.0.1:4000/api/auth/spotify/callback
+   WEB_APP_URL=http://localhost:5173
+   ```
+
+4. Reinicia `npm run dev` y entra a **/cuenta → Spotify → Conectar con Spotify**.
+
+Permisos que se piden (todos de lectura): `user-read-private`, `user-read-email`, `user-top-read`, `playlist-read-private`, `playlist-read-collaborative`, `user-library-read`. El token se refresca solo; si Spotify lo revoca, la UI pide reconectar.
 
 ---
 
@@ -206,6 +231,13 @@ Base: `http://localhost:4000/api`
 | DELETE | `/library/history` | Bearer | borrar historial |
 | POST | `/library/play` | opcional | registra reproducción (alimenta el ranking) |
 | GET | `/rankings?period=&category=&limit=` | — | ranking (`score = plays + likes*3 + usuarios*2`) |
+| GET | `/auth/spotify/url` | Bearer | URL de autorización de Spotify (con `state` firmado 10 min) |
+| GET | `/auth/spotify/callback` | — | Spotify vuelve aquí: guarda el token y redirige a `/cuenta?spotify=ok` |
+| GET | `/spotify/status` | Bearer | `configured`, `clientIdPresent`, `redirectUri`, `linked`, perfil y scopes |
+| GET | `/spotify/me` | Bearer | perfil de Spotify del usuario |
+| GET | `/spotify/me/top-tracks?time_range=&limit=` | Bearer | más escuchadas (`short_term` 4 sem · `medium_term` 6 meses · `long_term` años) |
+| GET | `/spotify/me/playlists?limit=` | Bearer | playlists del usuario (carátula, nº de temas, enlace) |
+| DELETE | `/spotify/link` | Bearer | desvincula la cuenta y borra los tokens |
 
 Los tracks guardados en playlists/favoritos pasan por `sanitizeTrack()`: nunca se confía en el cliente.
 
@@ -231,4 +263,4 @@ Ampliar el catálogo = añadir artistas a `CHRISTIAN_ARTISTS` en `lib/purity.ts`
 
 ## 7. Siguientes pasos
 
-Ver [ROADMAP.md](ROADMAP.md): UI de 10 pies para Android TV, `.dmg` verificado, base de datos real (SQLite/Postgres), OAuth de Spotify, descargas offline y claves de Spotify/SoundCloud/Vimeo.
+Ver [ROADMAP.md](ROADMAP.md): UI de 10 pies para Android TV, `.dmg` verificado, base de datos real (SQLite/Postgres), descargas offline y claves de SoundCloud/Vimeo. El **OAuth de Spotify ya está hecho** (v0.4.0); falta llevarlo al APK y al escritorio, donde el callback necesita una URL alcanzable desde el dispositivo.

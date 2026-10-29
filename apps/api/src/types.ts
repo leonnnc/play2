@@ -51,6 +51,20 @@ export interface PublicUser {
   };
 }
 
+/** Cuenta de Spotify vinculada por OAuth (Authorization Code). */
+export interface SpotifyLink {
+  accessToken: string;
+  refreshToken: string;
+  /** epoch ms en que caduca el access token */
+  expiresAt: number;
+  scope: string;
+  spotifyUserId: string;
+  displayName?: string;
+  product?: string;
+  country?: string;
+  linkedAt: string;
+}
+
 export interface UserRecord {
   id: string;
   name: string;
@@ -61,6 +75,8 @@ export interface UserRecord {
     categories: string[];
     providers: ProviderId[];
   };
+  /** Presente solo si el usuario conectó su cuenta de Spotify. */
+  spotify?: SpotifyLink;
 }
 
 export interface PlaylistRecord {

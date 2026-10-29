@@ -45,10 +45,21 @@ Objetivo: app nativa para Windows/macOS/Linux reutilizando el 100 % del frontend
 - [ ] Publicación: Google Play (cuenta de desarrollador, APK/AAB firmado) y App Store (requiere Xcode + revisión).
 
 
+## Fase 3.5 — Spotify del usuario (v0.4.0) · completado
+
+Objetivo: que Play2 lea la cuenta de Spotify del usuario, no solo el catálogo.
+
+- [x] **Authorization Code** con `state` firmado como JWT (10 min) y sin sesiones en servidor.
+- [x] Token por usuario (`accessToken`, `refreshToken`, `expiresAt`, `scope`) con **refresco automático** a falta de 60 s; `401 reauth_required` / `409 not_linked`.
+- [x] Endpoints `/auth/spotify/url`, `/auth/spotify/callback`, `/spotify/status`, `/spotify/me`, `/spotify/me/top-tracks`, `/spotify/me/playlists`, `DELETE /spotify/link`.
+- [x] Panel en **/cuenta**: vincular/desvincular, perfil, top tracks por 4 semanas / 6 meses / todo el tiempo, playlists con carátula.
+- [ ] **Callback en el APK y el escritorio**: `127.0.0.1` solo sirve en la web local; en el móvil/TV hace falta un dominio o un proxy al API.
+- [ ] Escritura en Spotify (`user-library-modify`, `playlist-modify-*`) para "guardar en mi cuenta" y crear playlists allá.
+
 ## Fase 4 — Plataforma
 
 - Base de datos Postgres + Prisma, despliegue con Docker.
-- OAuth real de Spotify (login del usuario, no solo client-credentials) y "guardar en mi cuenta".
+- ~~OAuth real de Spotify~~ → hecho en v0.4.0 (ver Fase 3.5). Falta la parte de escritura.
 - Letras sincronizadas, radio por artista, recomendaciones por historial.
 - Moderación de playlists públicas y perfiles de artista/iglesia.
 - Panel de administración: curación del catálogo, métricas, contenido destacado.
